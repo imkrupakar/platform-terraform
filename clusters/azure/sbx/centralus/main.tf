@@ -81,6 +81,7 @@ module "argocd" {
   github_app_id              = var.github_app_id
   github_app_installation_id = var.github_app_installation_id
   github_app_private_key     = var.github_app_private_key
+  github_token               = var.github_token
 
   depends_on = [module.cluster, azurerm_role_assignment.acrpull]
 }

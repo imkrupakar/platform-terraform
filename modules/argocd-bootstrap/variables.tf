@@ -34,14 +34,25 @@ variable "github_org_url" {
 }
 
 variable "github_app_id" {
-  type = string
+  type    = string
+  default = ""
 }
 
 variable "github_app_installation_id" {
-  type = string
+  type    = string
+  default = ""
 }
 
 variable "github_app_private_key" {
   type      = string
+  default   = ""
+  sensitive = true
+}
+
+# Sandbox alternative to the GitHub App: a token used as repo-creds (username x-access-token).
+# When set, the GitHub App secret is skipped. Leave empty to use the GitHub App.
+variable "github_token" {
+  type      = string
+  default   = ""
   sensitive = true
 }

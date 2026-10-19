@@ -56,9 +56,15 @@ resource "kubernetes_secret" "in_cluster" {
   depends_on = [helm_release.argocd]
 }
 
-# 3. The single bootstrap secret — GitHub App repo-creds (private Git read access).
-#    ESO later uses workload identity, so this is the only secret Terraform seeds.
+# 3. The single bootstrap secret — repo-creds for private Git read access.
+#    Production: GitHub App (githubApp* fields). Sandbox: a token (username/password) when
+#    var.github_token is set — lets the first bring-up proceed without the GitHub App browser flow.
+locals {
+  use_token = var.github_token != ""
+}
+
 resource "kubernetes_secret" "github_app_creds" {
+  count = local.use_token ? 0 : 1
   metadata {
     name      = "github-app-creds"
     namespace = "argocd"
@@ -70,6 +76,22 @@ resource "kubernetes_secret" "github_app_creds" {
     githubAppID             = var.github_app_id
     githubAppInstallationID = var.github_app_installation_id
     githubAppPrivateKey     = var.github_app_private_key
+  }
+  depends_on = [helm_release.argocd]
+}
+
+resource "kubernetes_secret" "github_token_creds" {
+  count = local.use_token ? 1 : 0
+  metadata {
+    name      = "github-token-creds"
+    namespace = "argocd"
+    labels    = { "argocd.argoproj.io/secret-type" = "repo-creds" }
+  }
+  data = {
+    type     = "git"
+    url      = var.github_org_url
+    username = "x-access-token"
+    password = var.github_token
   }
   depends_on = [helm_release.argocd]
 }
@@ -114,5 +136,6 @@ resource "kubectl_manifest" "root_app" {
     helm_release.argocd,
     kubernetes_secret.in_cluster,
     kubernetes_secret.github_app_creds,
+    kubernetes_secret.github_token_creds,
   ]
 }

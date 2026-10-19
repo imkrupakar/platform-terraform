@@ -42,3 +42,8 @@ variable "github_app_private_key" {
   default   = ""
   sensitive = true
 }
+variable "github_token" {
+  type      = string
+  default   = ""
+  sensitive = true
+}
