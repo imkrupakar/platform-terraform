@@ -29,8 +29,10 @@ resource "helm_release" "argocd" {
 
   values = concat([file("${path.module}/values/argocd.yaml")], local.ha_values)
 
-  atomic          = true
-  cleanup_on_fail = true
+  wait            = true
+  timeout         = 900
+  atomic          = false # keep a partial install for debugging instead of uninstalling
+  cleanup_on_fail = false
 }
 
 # 2. Label the in-cluster so the platform ApplicationSets (cluster generator) can read
