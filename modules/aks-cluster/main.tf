@@ -76,6 +76,9 @@ resource "azurerm_kubernetes_cluster" "this" {
     vm_size        = var.node_vm_size
     vnet_subnet_id = azurerm_subnet.nodes.id
     os_sku         = "AzureLinux"
+    upgrade_settings {
+      max_surge = "10%" # match the AKS default so plans stay clean
+    }
   }
 
   identity { type = "SystemAssigned" }
