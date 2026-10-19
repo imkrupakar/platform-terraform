@@ -6,3 +6,7 @@ acr_name            = "acrplatsbxcus14462b"
 environment         = "sbx"
 node_count          = 3
 node_vm_size        = "Standard_D4ds_v6"
+enable_argocd              = true
+github_app_id              = "5379839"
+github_app_installation_id = "172998649"
+# github_app_private_key supplied via TF_VAR_github_app_private_key="$(cat argocd-app.pem)"
