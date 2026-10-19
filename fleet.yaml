@@ -1,0 +1,67 @@
+# fleet.yaml — SOURCE OF TRUTH for the cluster fleet.
+#
+# Every cluster runs its own standalone Argo CD. This file is the authoritative index of
+# what exists and which PINNED module/chart versions each cluster runs, so promotion is a
+# reviewable diff: bump a version on sbx, apply + soak, then advance dev -> stg -> prd.
+#
+# CI renders/validates that each entry has a matching clusters/<cloud>/<env>/<region>/ stack and
+# that the pinned module `?ref` in that stack equals module_versions below (drift guard).
+# Promotion is intentionally monotonic: a version must not land in a higher env before the
+# next-lower env already runs it.
+apiVersion: platform/v1
+kind: ClusterFleet
+defaults:
+  platform_gitops_repo: https://github.com/krupakar-hyland/platform-gitops
+  module_versions:
+    cluster: v1.0.0          # aks-cluster / eks-cluster / gke-cluster module tag
+    argocd_bootstrap: v1.0.0 # argocd-bootstrap module tag
+    argocd_chart: 10.10.1    # argoproj/argo-helm argo-cd chart version
+
+clusters:
+  - name: sbx-azure-eastus
+    cloud: azure
+    environment: sbx
+    region: eastus
+    path: clusters/azure/sbx/eastus
+    platform_gitops_revision: main
+    module_versions: { cluster: v1.0.0, argocd_bootstrap: v1.0.0, argocd_chart: 10.10.1 }
+
+  - name: dev-azure-eastus
+    cloud: azure
+    environment: dev
+    region: eastus
+    path: clusters/azure/dev/eastus
+    platform_gitops_revision: main
+    module_versions: { cluster: v1.0.0, argocd_bootstrap: v1.0.0, argocd_chart: 10.10.1 }
+
+  - name: stg-azure-eastus
+    cloud: azure
+    environment: stg
+    region: eastus
+    path: clusters/azure/stg/eastus
+    platform_gitops_revision: main
+    module_versions: { cluster: v1.0.0, argocd_bootstrap: v1.0.0, argocd_chart: 10.10.1 }
+
+  - name: prd-azure-eastus
+    cloud: azure
+    environment: prd
+    region: eastus
+    path: clusters/azure/prd/eastus
+    platform_gitops_revision: main
+    module_versions: { cluster: v1.0.0, argocd_bootstrap: v1.0.0, argocd_chart: 10.10.1 }
+
+  - name: prd-azure-westus
+    cloud: azure
+    environment: prd
+    region: westus
+    path: clusters/azure/prd/westus
+    platform_gitops_revision: main
+    module_versions: { cluster: v1.0.0, argocd_bootstrap: v1.0.0, argocd_chart: 10.10.1 }
+
+  - name: prd-aws-useast1
+    cloud: aws
+    environment: prd
+    region: us-east-1
+    path: clusters/aws/prd/us-east-1
+    platform_gitops_revision: main
+    module_versions: { cluster: v1.0.0, argocd_bootstrap: v1.0.0, argocd_chart: 10.10.1 }

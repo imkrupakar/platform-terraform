@@ -1,0 +1,47 @@
+variable "environment" {
+  type        = string
+  description = "sbx | dev | stg | prd"
+}
+
+variable "region" {
+  type = string
+}
+
+variable "cloud" {
+  type        = string
+  description = "azure | aws"
+}
+
+variable "argocd_chart_version" {
+  type        = string
+  description = "argo-cd Helm chart version (argoproj/argo-helm). Pin and promote sbx->prd."
+  default     = "10.10.1"
+}
+
+variable "platform_gitops_repo" {
+  type    = string
+  default = "https://github.com/krupakar-hyland/platform-gitops"
+}
+
+variable "platform_gitops_revision" {
+  type    = string
+  default = "main"
+}
+
+variable "github_org_url" {
+  type    = string
+  default = "https://github.com/krupakar-hyland"
+}
+
+variable "github_app_id" {
+  type = string
+}
+
+variable "github_app_installation_id" {
+  type = string
+}
+
+variable "github_app_private_key" {
+  type      = string
+  sensitive = true
+}

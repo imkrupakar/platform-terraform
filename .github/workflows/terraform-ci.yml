@@ -1,0 +1,32 @@
+name: terraform-ci
+on:
+  pull_request:
+    paths:
+      - "clusters/**"
+      - "modules/**"
+      - "platform/**"
+      - "fleet.yaml"
+      - ".github/workflows/terraform-ci.yml"
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+
+      - name: terraform fmt
+        run: terraform fmt -check -recursive
+
+      - name: fleet drift guard (fleet.yaml <-> live stacks + monotonic promotion)
+        run: |
+          pip install pyyaml --quiet
+          python scripts/validate_fleet.py
+
+      - name: tflint
+        run: |
+          curl -sSL https://raw.githubusercontent.com/terraform-linters/tflint/master/install_linux.sh | bash
+          tflint --recursive

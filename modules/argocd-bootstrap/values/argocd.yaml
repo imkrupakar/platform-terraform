@@ -1,0 +1,29 @@
+# Base Argo CD install values — same on every cluster.
+#
+# Config ownership is split by reload semantics to avoid the Helm-vs-GitOps split-brain:
+#   - argocd-cmd-params-cm  -> managed HERE (Helm). These are consumed at process START-UP,
+#     so Helm must own them to roll the pods when they change.
+#   - argocd-cm, argocd-rbac-cm -> managed in GitOps (platform-gitops/argocd/base). They are
+#     HOT-RELOADED, so GitOps owns them and the `argocd-self` Application is the single
+#     source of truth. Helm must NOT create them (create: false) or the two controllers
+#     fight over Server-Side-Apply field ownership.
+crds:
+  install: true
+  keep: true
+
+configs:
+  cm:
+    # Owned by platform-gitops/argocd/base/argocd-cm.yaml (hot-reloaded).
+    create: false
+  rbac:
+    # Owned by platform-gitops/argocd/base/argocd-rbac-cm.yaml (hot-reloaded).
+    create: false
+  params:
+    # Owned here: startup params need a controlled pod restart, which Helm handles.
+    create: true
+    application.namespaces: "*"
+    applicationsetcontroller.enable.progressive.syncs: "true"
+    server.insecure: "true"
+
+applicationSet:
+  enabled: true
