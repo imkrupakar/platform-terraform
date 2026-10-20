@@ -19,51 +19,19 @@ defaults:
     gateway_api: 1.6.3       # Gateway API CRD bundle (modules/gateway-api-crds)
 
 clusters:
-  - name: sbx-azure-eastus
+  - name: sbx-azure-centralus
     cloud: azure
     environment: sbx
-    region: eastus
-    path: clusters/azure/sbx/eastus
+    region: centralus
+    path: clusters/azure/sbx/centralus
     platform_gitops_revision: main
     module_versions: { cluster: v1.0.0, argocd_bootstrap: v1.0.0, argocd_chart: 10.10.1, gateway_api: 1.6.3 }
 
-  - name: dev-azure-eastus
+  - name: dev-azure-centralus
     cloud: azure
     environment: dev
-    region: eastus
-    path: clusters/azure/dev/eastus
-    platform_gitops_revision: main
-    module_versions: { cluster: v1.0.0, argocd_bootstrap: v1.0.0, argocd_chart: 10.10.1, gateway_api: 1.6.3 }
-
-  - name: stg-azure-eastus
-    cloud: azure
-    environment: stg
-    region: eastus
-    path: clusters/azure/stg/eastus
-    platform_gitops_revision: main
-    module_versions: { cluster: v1.0.0, argocd_bootstrap: v1.0.0, argocd_chart: 10.10.1, gateway_api: 1.6.3 }
-
-  - name: prd-azure-eastus
-    cloud: azure
-    environment: prd
-    region: eastus
-    path: clusters/azure/prd/eastus
-    platform_gitops_revision: main
-    module_versions: { cluster: v1.0.0, argocd_bootstrap: v1.0.0, argocd_chart: 10.10.1, gateway_api: 1.6.3 }
-
-  - name: prd-azure-westus
-    cloud: azure
-    environment: prd
-    region: westus
-    path: clusters/azure/prd/westus
-    platform_gitops_revision: main
-    module_versions: { cluster: v1.0.0, argocd_bootstrap: v1.0.0, argocd_chart: 10.10.1, gateway_api: 1.6.3 }
-
-  - name: prd-aws-useast1
-    cloud: aws
-    environment: prd
-    region: us-east-1
-    path: clusters/aws/prd/us-east-1
+    region: centralus
+    path: clusters/azure/dev/centralus
     platform_gitops_revision: main
     module_versions: { cluster: v1.0.0, argocd_bootstrap: v1.0.0, argocd_chart: 10.10.1, gateway_api: 1.6.3 }
 

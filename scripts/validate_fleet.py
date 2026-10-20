@@ -47,8 +47,10 @@ def main():
         cluster_mod = next((m for m in refs if m.endswith("-cluster")), None)
         if cluster_mod and refs[cluster_mod] != want["cluster"]:
             errors.append(f"{c['name']}: {cluster_mod} ?ref={refs[cluster_mod]} != fleet cluster {want['cluster']}")
-        if refs.get("argocd-bootstrap") != want["argocd_bootstrap"]:
-            errors.append(f"{c['name']}: argocd-bootstrap ?ref={refs.get('argocd-bootstrap')} != fleet {want['argocd_bootstrap']}")
+        # Drift guard only applies to git-pinned modules; sandbox stacks use local module paths
+        # (no ?ref) and are checked by the stack-exists + monotonic checks instead.
+        if "argocd-bootstrap" in refs and refs["argocd-bootstrap"] != want["argocd_bootstrap"]:
+            errors.append(f"{c['name']}: argocd-bootstrap ?ref={refs['argocd-bootstrap']} != fleet {want['argocd_bootstrap']}")
 
     # monotonic promotion: a higher env must not run a version absent from the next-lower env.
     by_env = {}
