@@ -5,13 +5,13 @@
 # in one place (mirrors modules/aks-cluster). Outputs feed the kubernetes/helm/kubectl providers.
 ###############################################################################
 terraform {
+  required_version = ">= 1.6.0"
   required_providers {
     aws = { source = "hashicorp/aws", version = "~> 5.60" }
   }
 }
 
 variable "name" { type = string }               # cluster name, e.g. eks-sbx-use2
-variable "region" { type = string }             # e.g. us-east-2
 variable "kubernetes_version" { type = string } # e.g. "1.31"
 variable "node_count" {
   type    = number
