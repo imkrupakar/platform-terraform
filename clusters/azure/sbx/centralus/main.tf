@@ -69,6 +69,25 @@ provider "kubectl" {
   load_config_file       = false
 }
 
+# Foundational CRDs (Kubernetes Gateway API), installed by Terraform before the ingress stack.
+# Pinned per cluster via var.gateway_api_version; promote sbx->prd by editing tfvars.
+module "gateway_api_crds" {
+  count  = var.enable_argocd ? 1 : 0
+  source = "../../../../modules/gateway-api-crds"
+
+  gateway_api_version = var.gateway_api_version
+
+  depends_on = [module.cluster]
+}
+
+# Moved: the Gateway API CRDs were previously declared inside module.argocd. This relocates their
+# state to the dedicated module WITHOUT destroy/recreate (recreating a CRD would cascade-delete every
+# Gateway/HTTPRoute).
+moved {
+  from = module.argocd[0].kubectl_manifest.gateway_api_crds
+  to   = module.gateway_api_crds[0].kubectl_manifest.gateway_api_crds
+}
+
 # Phase 2: standalone Argo CD + root app. Enabled once the GitHub App creds are provided.
 module "argocd" {
   count  = var.enable_argocd ? 1 : 0
@@ -78,7 +97,6 @@ module "argocd" {
   region                     = var.region
   cloud                      = "azure"
   argocd_chart_version       = var.argocd_chart_version
-  gateway_api_version        = var.gateway_api_version
   platform_gitops_repo       = var.platform_gitops_repo
   github_org_url             = var.github_org_url
   github_app_id              = var.github_app_id
@@ -86,7 +104,7 @@ module "argocd" {
   github_app_private_key     = var.github_app_private_key
   github_token               = var.github_token
 
-  depends_on = [module.cluster, azurerm_role_assignment.acrpull]
+  depends_on = [module.cluster, azurerm_role_assignment.acrpull, module.gateway_api_crds]
 }
 
 output "acr_login_server" { value = azurerm_container_registry.this.login_server }

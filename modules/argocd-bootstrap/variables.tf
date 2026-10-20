@@ -17,11 +17,6 @@ variable "argocd_chart_version" {
   description = "argo-cd Helm chart version (argoproj/argo-helm). Pinned explicitly per cluster; promote sbx->prd."
 }
 
-variable "gateway_api_version" {
-  type        = string
-  description = "Kubernetes Gateway API bundle version (standard channel), e.g. 1.6.3. Pinned per cluster; promote sbx->prd."
-}
-
 variable "platform_gitops_repo" {
   type    = string
   default = "https://github.com/krupakar-hyland/platform-gitops"

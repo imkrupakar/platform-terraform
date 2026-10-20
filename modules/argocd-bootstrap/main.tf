@@ -9,7 +9,6 @@ terraform {
     kubernetes = { source = "hashicorp/kubernetes", version = "~> 2.30" }
     helm       = { source = "hashicorp/helm", version = "~> 2.13" }
     kubectl    = { source = "gavinbunney/kubectl", version = "~> 1.14" }
-    http       = { source = "hashicorp/http", version = "~> 3.4" }
   }
 }
 
@@ -17,28 +16,6 @@ locals {
   # Prod clusters get an HA Argo CD; nonprod a single-replica install.
   is_prod   = var.environment == "prd"
   ha_values = local.is_prod ? [file("${path.module}/values/argocd-ha.yaml")] : []
-}
-
-# 0. FOUNDATIONAL CRDs — Kubernetes Gateway API (standard channel), installed by Terraform (like Argo
-#    CD itself) rather than GitOps: they are a cluster capability needed before the ingress stack, and
-#    managing them here avoids GitOps prune cascades (deleting these CRDs would delete every
-#    Gateway/HTTPRoute). The bundle is pinned by version and promoted sbx->prd via each cluster's
-#    tfvars. Server-side apply is required (the bundle exceeds the client-side apply size limit).
-#    Istio/istiod and the platform Gateway (both GitOps) retry until these exist.
-data "http" "gateway_api_crds" {
-  url = "https://github.com/kubernetes-sigs/gateway-api/releases/download/v${var.gateway_api_version}/standard-install.yaml"
-}
-
-data "kubectl_file_documents" "gateway_api_crds" {
-  content = data.http.gateway_api_crds.response_body
-}
-
-resource "kubectl_manifest" "gateway_api_crds" {
-  for_each          = data.kubectl_file_documents.gateway_api_crds.manifests
-  yaml_body         = each.value
-  server_side_apply = true
-  force_conflicts   = true # adopt field ownership from Argo's field manager (argocd-controller) on migration
-  wait              = true
 }
 
 # 1. Install Argo CD (standalone, one per cluster).
@@ -162,6 +139,5 @@ resource "kubectl_manifest" "root_app" {
     kubernetes_secret.in_cluster,
     kubernetes_secret.github_app_creds,
     kubernetes_secret.github_token_creds,
-    kubectl_manifest.gateway_api_crds,
   ]
 }
