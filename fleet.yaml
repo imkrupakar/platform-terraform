@@ -65,3 +65,11 @@ clusters:
     path: clusters/aws/prd/us-east-1
     platform_gitops_revision: main
     module_versions: { cluster: v1.0.0, argocd_bootstrap: v1.0.0, argocd_chart: 10.10.1 }
+
+  - name: sbx-aws-useast2
+    cloud: aws
+    environment: sbx
+    region: us-east-2
+    path: clusters/aws/sbx/us-east-2
+    platform_gitops_revision: main
+    module_versions: { cluster: v1.0.0, argocd_bootstrap: v1.0.0, argocd_chart: 10.10.1 }
