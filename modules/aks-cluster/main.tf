@@ -4,6 +4,7 @@
 # Outputs feed the kubernetes/helm/kubectl providers and AcrPull wiring in the stack.
 ###############################################################################
 terraform {
+  required_version = ">= 1.6.0"
   required_providers {
     azurerm = { source = "hashicorp/azurerm", version = "~> 4.0" }
   }
@@ -100,19 +101,19 @@ output "resource_group_name" { value = azurerm_resource_group.this.name }
 output "node_resource_group" { value = azurerm_kubernetes_cluster.this.node_resource_group }
 
 output "host" {
-  value = azurerm_kubernetes_cluster.this.kube_config.0.host
+  value = azurerm_kubernetes_cluster.this.kube_config[0].host
 }
 output "cluster_ca_certificate" {
-  value = azurerm_kubernetes_cluster.this.kube_config.0.cluster_ca_certificate
+  value = azurerm_kubernetes_cluster.this.kube_config[0].cluster_ca_certificate
 }
 output "client_certificate" {
-  value = azurerm_kubernetes_cluster.this.kube_config.0.client_certificate
+  value = azurerm_kubernetes_cluster.this.kube_config[0].client_certificate
 }
 output "client_key" {
-  value = azurerm_kubernetes_cluster.this.kube_config.0.client_key
+  value = azurerm_kubernetes_cluster.this.kube_config[0].client_key
 }
 
 # Kubelet managed identity — grant it AcrPull on the ACR (done in the stack).
 output "kubelet_identity_object_id" {
-  value = azurerm_kubernetes_cluster.this.kubelet_identity.0.object_id
+  value = azurerm_kubernetes_cluster.this.kubelet_identity[0].object_id
 }

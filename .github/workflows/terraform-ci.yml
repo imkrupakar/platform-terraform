@@ -26,7 +26,8 @@ jobs:
           pip install pyyaml --quiet
           python scripts/validate_fleet.py
 
+      - uses: terraform-linters/setup-tflint@v4
       - name: tflint
         run: |
-          curl -sSL https://raw.githubusercontent.com/terraform-linters/tflint/master/install_linux.sh | bash
+          tflint --init
           tflint --recursive

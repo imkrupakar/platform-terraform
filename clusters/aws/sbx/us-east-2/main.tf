@@ -21,7 +21,6 @@ module "eks" {
   source = "../../../../modules/eks-cluster"
 
   name               = var.cluster_name
-  region             = var.region
   kubernetes_version = var.kubernetes_version
   node_count         = var.node_count
   node_instance_type = var.node_instance_type
