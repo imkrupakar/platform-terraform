@@ -37,6 +37,7 @@ resource "kubectl_manifest" "gateway_api_crds" {
   for_each          = data.kubectl_file_documents.gateway_api_crds.manifests
   yaml_body         = each.value
   server_side_apply = true
+  force_conflicts   = true # adopt field ownership from Argo's field manager (argocd-controller) on migration
   wait              = true
 }
 
