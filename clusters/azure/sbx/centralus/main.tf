@@ -80,14 +80,6 @@ module "gateway_api_crds" {
   depends_on = [module.cluster]
 }
 
-# Moved: the Gateway API CRDs were previously declared inside module.argocd. This relocates their
-# state to the dedicated module WITHOUT destroy/recreate (recreating a CRD would cascade-delete every
-# Gateway/HTTPRoute).
-moved {
-  from = module.argocd[0].kubectl_manifest.gateway_api_crds
-  to   = module.gateway_api_crds[0].kubectl_manifest.gateway_api_crds
-}
-
 # Phase 2: standalone Argo CD + root app. Enabled once the GitHub App creds are provided.
 module "argocd" {
   count  = var.enable_argocd ? 1 : 0
