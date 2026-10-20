@@ -1,89 +1,86 @@
-# cluster-platform-terraform
+# platform-terraform
 
-**Separate repository.** Provisions each Kubernetes cluster and bootstraps a **standalone
-Argo CD per cluster**. There is no hub — every cluster manages only itself from Git.
+**Separate repository.** Provisions each Kubernetes cluster and bootstraps a **standalone Argo CD
+per cluster**. There is no hub — every cluster manages only itself from Git. Once Argo CD is running,
+everything else (add-ons, tenants, workloads) is reconciled from `platform-gitops`; this repo is the
+imperative, run-once part.
 
-## What Terraform does (Phase 1, once per cluster)
+## What Terraform does (per cluster)
 
-1. Create the cluster (AKS or EKS) — `modules/aks-cluster` / `modules/eks-cluster`.
-2. Install Argo CD on that cluster (`modules/argocd-bootstrap` → Helm).
-3. Create the **labeled in-cluster secret** so Argo CD knows its own identity
-   (`environment`, `region`, `cloud`, `workloads`). The platform ApplicationSets read
-   these labels via the cluster generator.
-4. Seed the single GitHub App `repo-creds` secret (so Argo CD can read private Git).
-5. Apply the **one** root Application (app-of-apps) pointing at `platform-gitops`.
+The cluster stack (`clusters/<cloud>/<env>/<region>/`) runs in two phases:
 
-After that, Argo CD self-manages: add-ons (incl. ESO), AppProjects, tenant namespaces,
-and workloads all reconcile from Git with **zero kubectl**.
+**Phase 1 — infrastructure**
+1. Create the cluster + its network + registry:
+   - Azure: `modules/aks-cluster` (AKS + VNet) and an `azurerm_container_registry` (ACR) in the stack.
+   - AWS: `modules/eks-cluster` (EKS + VPC, a thin wrapper over the standard `terraform-aws-modules`)
+     and `aws_ecr_repository` resources in the stack.
+
+**Phase 2 — hand control to GitOps**
+2. Install the **foundational Gateway API CRDs** (`modules/gateway-api-crds`, pinned by
+   `gateway_api_version`) — a cluster capability, like Argo CD itself, so it is owned by Terraform
+   rather than GitOps.
+3. Install Argo CD (`modules/argocd-bootstrap` → Helm, pinned by `argocd_chart_version`).
+4. Create the **labeled in-cluster secret** (`environment`, `region`, `cloud`, `workloads`) — this is
+   how the platform ApplicationSets discover the cluster's identity and render the right config.
+5. Seed the GitHub App `repo-creds` secret (so Argo CD can read private Git).
+6. Apply the **one** root Application (app-of-apps) pointing at `platform-gitops`.
+
+After that, Argo CD self-manages with **zero kubectl**.
 
 ## Layout
 
 ```
-cluster-platform-terraform/
-├── fleet.yaml               # SOURCE OF TRUTH: every cluster + its pinned module/chart versions
-├── modules/                 # consumed via a PINNED git ?ref (promotable)
-│   ├── aks-cluster/         # provision AKS (placeholder for your real module)
-│   ├── eks-cluster/         # provision EKS (placeholder)
-│   ├── gke-cluster/         # provision GKE (placeholder — new-cloud readiness)
-│   ├── argocd-bootstrap/    # install Argo CD + in-cluster label + repo-creds + root app
-│   ├── acr/                 # one Azure Container Registry (reused for nonprod + prod)
-│   └── ecr/                 # one regional AWS ECR registry (prod)
-├── clusters/                # one stack per CLUSTER (own state): <cloud>/<env>/<region>
-│   ├── azure/
-│   │   ├── sbx/eastus/
-│   │   ├── dev/eastus/
-│   │   ├── stg/eastus/
-│   │   └── prd/{eastus,westus}/
-│   └── aws/
-│       └── prd/us-east-1/
-└── platform/                # FLEET-WIDE infra (not per-cluster): own state per stack
-    └── registry/            # layout: <cloud>/<tier>[/<region>]
-        ├── azure/
-        │   ├── nonprod/     # nonprod ACR (one registry; no <region> — see below)
-        │   └── prod/        # prod ACR, geo-replicated to all Azure prod regions
-        └── aws/
-            ├── nonprod/<region>/  # nonprod ECR (ECR is regional -> one stack per region)
-            └── prod/<region>/     # prod ECR     (and per AWS account per tier)
+platform-terraform/
+├── fleet.yaml               # registry of every cluster + its pinned versions (promotion ledger)
+├── modules/
+│   ├── aks-cluster/         # AKS + VNet (raw azurerm)
+│   ├── eks-cluster/         # EKS + VPC (wraps terraform-aws-modules/{vpc,eks})
+│   ├── gateway-api-crds/    # foundational Gateway API CRDs (http + kubectl, server-side apply)
+│   └── argocd-bootstrap/    # install Argo CD + in-cluster label + repo-creds + root app
+└── clusters/                # one stack per CLUSTER, keyed <cloud>/<env>/<region>, local state
+    ├── azure/sbx/centralus/ # AKS + ACR + Argo CD
+    └── aws/sbx/us-east-2/    # EKS + ECR + Argo CD
 ```
 
-`clusters/` holds per-cluster stacks; `platform/` holds shared singletons (the registries,
-and later DNS/global LB, shared identity). Keeping them apart means a registry change never
-re-plans a cluster and vice versa. Each cluster stack is thin: `terraform.tfvars` +
-`backend.tf` carry identity, `main.tf` wires providers and calls the pinned modules. The
-provider set includes **kubectl** (`gavinbunney/kubectl`) — the root Application is applied
-with `kubectl_manifest`, not `kubernetes_manifest`, because the latter needs the Argo CD
-`Application` CRD to exist at plan time (it is installed by the Helm release in the same apply).
+Each cluster stack is thin: `terraform.tfvars` carries identity + pins, `main.tf` wires the providers
+and calls the modules. The ACR/ECR registries are created in the stack itself (ECR has no registry
+resource — each repository is its own `aws_ecr_repository`). The provider set includes **kubectl**
+(`gavinbunney/kubectl`): the root Application is applied with `kubectl_manifest`, not
+`kubernetes_manifest`, because the latter needs the Argo CD `Application` CRD to exist at plan time
+(it is installed by the Helm release in the same apply).
 
-## Versioned modules & promotion
+## Version pinning & promotion
 
-Module sources are pinned to a release tag and promoted lower→higher env:
+Each cluster pins its own versions **explicitly** in `terraform.tfvars` and promotes them one cluster
+at a time (sbx → dev → stg → prd):
 
-```hcl
-module "cluster" {
-  source = "git::https://github.com/krupakar-hyland/cluster-platform-terraform.git//modules/aks-cluster?ref=v1.0.0"
-}
-module "argocd" {
-  source = "git::.../modules/argocd-bootstrap?ref=v1.0.0"
-}
-```
+- `argocd_chart_version` — the `argo-cd` Helm chart.
+- `gateway_api_version` — the Gateway API CRD bundle.
 
-Ladder: bump the `?ref` (and `argocd_chart_version`) in the **sbx** stack → `apply` → soak →
-advance **dev** → **stg** → **prd**. `fleet.yaml` records the version matrix per cluster and
-is the drift guard (CI checks each stack's `?ref` equals its fleet entry, and that a version
-never lands in a higher env before the next-lower env runs it).
+(The GitOps side has its own per-cluster ledger in `platform-gitops/envs/<env>/<cloud>/<region>/versions.yaml`
+for add-ons + the platform-config chart.) `fleet.yaml` is the human-readable index of the whole fleet
+and the intended version matrix.
 
 ## Adding a cluster (new env / region / cloud)
 
-Run `scripts/onboard-cluster.sh <cloud> <env> <region>` (clones the nearest same-cloud stack,
-rewrites identity + backend key, prints the `fleet.yaml` entry), add the fleet entry, then
-`terraform apply`. The new cluster provisions, installs its own Argo CD, self-labels
-(environment/region/cloud), and pulls the entire platform + tenant workloads from Git.
-**No change to `platform-gitops`.** A new cloud additionally needs a `modules/<cloud>-cluster`
-module (a `gke-cluster` stub is included).
+1. Copy the nearest same-cloud stack to `clusters/<cloud>/<env>/<region>/` and set its `terraform.tfvars`
+   (identity + pins). A brand-new cloud also needs a `modules/<cloud>-cluster` module.
+2. Add a `platform-gitops/envs/<env>/<cloud>/<region>/versions.yaml` (add-on + platformConfig pins) so
+   the new cluster renders the platform stack.
+3. Add the cluster to `fleet.yaml`.
+4. Two-phase apply:
+   ```
+   terraform init
+   terraform apply -target=module.<cluster> -target=<registry>   # phase 1: infra
+   export TF_VAR_github_app_private_key="$(cat argocd-app.pem)"
+   terraform apply                                                # phase 2: CRDs + Argo CD
+   ```
+
+The cluster self-labels and its Argo CD pulls the entire platform + tenant workloads from Git — **no
+change to `platform-gitops` beyond the seeded `versions.yaml`**.
 
 ## Boundary with platform-gitops
 
-- This repo owns **cluster creation + the Argo CD entry point** (imperative, once).
-- `platform-gitops` owns **everything Argo CD reconciles afterward** (declarative, forever).
-- The root Application manifest is applied here but points at
-  `platform-gitops/bootstrap/app-of-apps`.
+- **This repo** owns cluster creation, foundational CRDs, and the Argo CD entry point (imperative, run-once).
+- **`platform-gitops`** owns everything Argo CD reconciles afterward (declarative, forever).
+- The root Application is applied here but points at `platform-gitops/bootstrap/app-of-apps`.
