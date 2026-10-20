@@ -13,9 +13,10 @@ kind: ClusterFleet
 defaults:
   platform_gitops_repo: https://github.com/krupakar-hyland/platform-gitops
   module_versions:
-    cluster: v1.0.0          # aks-cluster / eks-cluster / gke-cluster module tag
+    cluster: v1.0.0          # aks-cluster / eks-cluster module tag
     argocd_bootstrap: v1.0.0 # argocd-bootstrap module tag
     argocd_chart: 10.10.1    # argoproj/argo-helm argo-cd chart version
+    gateway_api: 1.6.3       # Gateway API CRD bundle (modules/gateway-api-crds)
 
 clusters:
   - name: sbx-azure-eastus
@@ -24,7 +25,7 @@ clusters:
     region: eastus
     path: clusters/azure/sbx/eastus
     platform_gitops_revision: main
-    module_versions: { cluster: v1.0.0, argocd_bootstrap: v1.0.0, argocd_chart: 10.10.1 }
+    module_versions: { cluster: v1.0.0, argocd_bootstrap: v1.0.0, argocd_chart: 10.10.1, gateway_api: 1.6.3 }
 
   - name: dev-azure-eastus
     cloud: azure
@@ -32,7 +33,7 @@ clusters:
     region: eastus
     path: clusters/azure/dev/eastus
     platform_gitops_revision: main
-    module_versions: { cluster: v1.0.0, argocd_bootstrap: v1.0.0, argocd_chart: 10.10.1 }
+    module_versions: { cluster: v1.0.0, argocd_bootstrap: v1.0.0, argocd_chart: 10.10.1, gateway_api: 1.6.3 }
 
   - name: stg-azure-eastus
     cloud: azure
@@ -40,7 +41,7 @@ clusters:
     region: eastus
     path: clusters/azure/stg/eastus
     platform_gitops_revision: main
-    module_versions: { cluster: v1.0.0, argocd_bootstrap: v1.0.0, argocd_chart: 10.10.1 }
+    module_versions: { cluster: v1.0.0, argocd_bootstrap: v1.0.0, argocd_chart: 10.10.1, gateway_api: 1.6.3 }
 
   - name: prd-azure-eastus
     cloud: azure
@@ -48,7 +49,7 @@ clusters:
     region: eastus
     path: clusters/azure/prd/eastus
     platform_gitops_revision: main
-    module_versions: { cluster: v1.0.0, argocd_bootstrap: v1.0.0, argocd_chart: 10.10.1 }
+    module_versions: { cluster: v1.0.0, argocd_bootstrap: v1.0.0, argocd_chart: 10.10.1, gateway_api: 1.6.3 }
 
   - name: prd-azure-westus
     cloud: azure
@@ -56,7 +57,7 @@ clusters:
     region: westus
     path: clusters/azure/prd/westus
     platform_gitops_revision: main
-    module_versions: { cluster: v1.0.0, argocd_bootstrap: v1.0.0, argocd_chart: 10.10.1 }
+    module_versions: { cluster: v1.0.0, argocd_bootstrap: v1.0.0, argocd_chart: 10.10.1, gateway_api: 1.6.3 }
 
   - name: prd-aws-useast1
     cloud: aws
@@ -64,7 +65,7 @@ clusters:
     region: us-east-1
     path: clusters/aws/prd/us-east-1
     platform_gitops_revision: main
-    module_versions: { cluster: v1.0.0, argocd_bootstrap: v1.0.0, argocd_chart: 10.10.1 }
+    module_versions: { cluster: v1.0.0, argocd_bootstrap: v1.0.0, argocd_chart: 10.10.1, gateway_api: 1.6.3 }
 
   - name: sbx-aws-useast2
     cloud: aws
@@ -72,4 +73,4 @@ clusters:
     region: us-east-2
     path: clusters/aws/sbx/us-east-2
     platform_gitops_revision: main
-    module_versions: { cluster: v1.0.0, argocd_bootstrap: v1.0.0, argocd_chart: 10.10.1 }
+    module_versions: { cluster: v1.0.0, argocd_bootstrap: v1.0.0, argocd_chart: 10.10.1, gateway_api: 1.6.3 }
