@@ -61,6 +61,12 @@ at a time (sbx → dev → stg → prd):
 for add-ons + the platform-config chart.) `fleet.yaml` is the human-readable index of the whole fleet
 and the intended version matrix.
 
+> **CI check (monotonic promotion).** On any `fleet.yaml` change, `terraform-ci.yml` runs
+> `scripts/validate_fleet.py`, which enforces that a module/chart version never lands in a higher
+> environment before the next-lower one already runs it (`sbx → dev → stg → prd`), and that each
+> stack's pins match its `fleet.yaml` entry (drift guard). So promotion is always a reviewable,
+> ordered diff — you can't accidentally pin prd ahead of stg.
+
 ## Adding a cluster (new env / region / cloud)
 
 1. Copy the nearest same-cloud stack to `clusters/<cloud>/<env>/<region>/` and set its `terraform.tfvars`
