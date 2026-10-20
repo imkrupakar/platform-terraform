@@ -7,15 +7,16 @@ imperative, run-once part.
 
 ## What Terraform does (per cluster)
 
-The cluster stack (`clusters/<cloud>/<env>/<region>/`) runs in two phases:
+The cluster stack (`clusters/<cloud>/<env>/<region>/`) provisions everything in a **single
+`terraform apply`** — no `-target` passes. It groups into two logical stages:
 
-**Phase 1 — infrastructure**
+**Infrastructure**
 1. Create the cluster + its network + registry:
    - Azure: `modules/aks-cluster` (AKS + VNet) and an `azurerm_container_registry` (ACR) in the stack.
    - AWS: `modules/eks-cluster` (EKS + VPC, a thin wrapper over the standard `terraform-aws-modules`)
      and `aws_ecr_repository` resources in the stack.
 
-**Phase 2 — hand control to GitOps**
+**Hand control to GitOps**
 2. Install the **foundational Gateway API CRDs** (`modules/gateway-api-crds`, pinned by
    `gateway_api_version`) — a cluster capability, like Argo CD itself, so it is owned by Terraform
    rather than GitOps.
@@ -75,13 +76,14 @@ and the intended version matrix.
 2. Add a `platform-gitops/envs/<env>/<cloud>/<region>/versions.yaml` (add-on + platformConfig pins) so
    the new cluster renders the platform stack.
 3. Add the cluster to `fleet.yaml`.
-4. Two-phase apply:
+4. Apply:
    ```
    terraform init
-   terraform apply -target=module.<cluster> -target=<registry>   # phase 1: infra
    export TF_VAR_github_app_private_key="$(cat argocd-app.pem)"
-   terraform apply                                                # phase 2: CRDs + Argo CD
+   terraform apply                                                # cluster + CRDs + Argo CD, one pass
    ```
+   For a brand-new cluster whose GitHub App doesn't exist yet, apply once with `enable_argocd=false`
+   to stand up infra, create the App, then re-apply with `enable_argocd=true` and the creds set.
 
 The cluster self-labels and its Argo CD pulls the entire platform + tenant workloads from Git — **no
 change to `platform-gitops` beyond the seeded `versions.yaml`**.

@@ -1,7 +1,7 @@
 # clusters/aws/sbx/us-east-2 — provision the EKS cluster + VPC + ECR, then bootstrap Argo CD.
-# Mirrors clusters/azure/sbx/centralus. Two-phase apply (first bring-up):
-#   Phase 1 (infra):  terraform apply -target=module.eks -target=aws_ecr_repository.this
-#   Phase 2 (argocd): terraform apply            # after the GitHub App creds are provided
+# Mirrors clusters/azure/sbx/centralus. Single `terraform apply` provisions everything in one pass.
+# First bring-up of a brand-new cluster: apply once with enable_argocd=false to stand up infra,
+# create the GitHub App, then apply with enable_argocd=true and the github_app_* vars set.
 terraform {
   required_version = ">= 1.6.0"
   required_providers {
@@ -43,7 +43,7 @@ resource "aws_ecr_repository" "this" {
   tags = { platform = "argocd-sandbox", tier = "nonprod" }
 }
 
-# --- Providers configured against the freshly created EKS cluster (used in Phase 2) ---
+# --- Providers configured against the freshly created EKS cluster (used by the GitOps stage) ---
 # Exec auth (aws eks get-token) so credentials don't expire mid-apply.
 provider "kubernetes" {
   host                   = module.eks.cluster_endpoint
@@ -84,11 +84,9 @@ module "gateway_api_crds" {
   source = "../../../../modules/gateway-api-crds"
 
   gateway_api_version = var.gateway_api_version
-
-  depends_on = [module.eks]
 }
 
-# Phase 2: standalone Argo CD + root app. Enabled once the GitHub App creds are provided.
+# GitOps stage: standalone Argo CD + root app. Enabled once the GitHub App creds are provided.
 module "argocd" {
   count  = var.enable_argocd ? 1 : 0
   source = "../../../../modules/argocd-bootstrap"

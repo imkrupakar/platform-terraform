@@ -16,7 +16,7 @@ variable "node_vm_size" {
   default = "Standard_D4ds_v6"
 }
 
-# Argo CD (Phase 2)
+# Argo CD (GitOps stage)
 variable "enable_argocd" {
   type    = bool
   default = false

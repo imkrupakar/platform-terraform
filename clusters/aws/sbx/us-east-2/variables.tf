@@ -23,7 +23,7 @@ variable "ecr_repositories" {
   default     = ["orders-api"]
 }
 
-# Argo CD (Phase 2)
+# Argo CD (GitOps stage)
 variable "enable_argocd" {
   type    = bool
   default = false

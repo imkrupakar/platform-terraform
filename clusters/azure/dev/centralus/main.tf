@@ -1,7 +1,7 @@
 # clusters/azure/dev/centralus — provision the AKS cluster + ACR, then bootstrap Argo CD (dev).
-# Two-phase apply (first bring-up):
-#   Phase 1 (cluster+ACR):  terraform apply -target=module.cluster -target=azurerm_container_registry.this -target=azurerm_role_assignment.acrpull
-#   Phase 2 (argocd):       terraform apply            # after the GitHub App exists (set github_app_* vars)
+# Single `terraform apply` provisions everything (cluster, Gateway API CRDs, Argo CD) in one pass.
+# First bring-up of a brand-new cluster: apply once with enable_argocd=false to stand up infra,
+# create the GitHub App, then apply with enable_argocd=true and the github_app_* vars set.
 terraform {
   required_version = ">= 1.6.0"
   required_providers {
@@ -44,7 +44,7 @@ resource "azurerm_role_assignment" "acrpull" {
   principal_id         = module.cluster.kubelet_identity_object_id
 }
 
-# --- Providers configured against the freshly created cluster (used in Phase 2) ---
+# --- Providers configured against the freshly created cluster (used by the GitOps stage) ---
 provider "kubernetes" {
   host                   = module.cluster.host
   cluster_ca_certificate = base64decode(module.cluster.cluster_ca_certificate)
@@ -76,11 +76,9 @@ module "gateway_api_crds" {
   source = "../../../../modules/gateway-api-crds"
 
   gateway_api_version = var.gateway_api_version
-
-  depends_on = [module.cluster]
 }
 
-# Phase 2: standalone Argo CD + root app. Enabled once the GitHub App creds are provided.
+# GitOps stage: standalone Argo CD + root app. Enabled once the GitHub App creds are provided.
 module "argocd" {
   count  = var.enable_argocd ? 1 : 0
   source = "../../../../modules/argocd-bootstrap"
