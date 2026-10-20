@@ -9,6 +9,7 @@ terraform {
     kubernetes = { source = "hashicorp/kubernetes", version = "~> 2.30" }
     helm       = { source = "hashicorp/helm", version = "~> 2.13" }
     kubectl    = { source = "gavinbunney/kubectl", version = "~> 1.14" }
+    http       = { source = "hashicorp/http", version = "~> 3.4" }
   }
 }
 
@@ -76,6 +77,8 @@ module "argocd" {
   environment                = var.environment
   region                     = var.region
   cloud                      = "azure"
+  argocd_chart_version       = var.argocd_chart_version
+  gateway_api_version        = var.gateway_api_version
   platform_gitops_repo       = var.platform_gitops_repo
   github_org_url             = var.github_org_url
   github_app_id              = var.github_app_id

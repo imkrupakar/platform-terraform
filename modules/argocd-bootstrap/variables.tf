@@ -14,8 +14,12 @@ variable "cloud" {
 
 variable "argocd_chart_version" {
   type        = string
-  description = "argo-cd Helm chart version (argoproj/argo-helm). Pin and promote sbx->prd."
-  default     = "10.10.1"
+  description = "argo-cd Helm chart version (argoproj/argo-helm). Pinned explicitly per cluster; promote sbx->prd."
+}
+
+variable "gateway_api_version" {
+  type        = string
+  description = "Kubernetes Gateway API bundle version (standard channel), e.g. 1.6.3. Pinned per cluster; promote sbx->prd."
 }
 
 variable "platform_gitops_repo" {

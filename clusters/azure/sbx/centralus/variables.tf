@@ -21,6 +21,14 @@ variable "enable_argocd" {
   type    = bool
   default = false
 }
+variable "argocd_chart_version" {
+  type        = string
+  description = "argo-cd Helm chart version, pinned explicitly for this cluster (promote sbx->prd)."
+}
+variable "gateway_api_version" {
+  type        = string
+  description = "Gateway API bundle version (standard channel), pinned for this cluster (promote sbx->prd)."
+}
 variable "platform_gitops_repo" {
   type    = string
   default = "https://github.com/krupakar-hyland/platform-gitops"
