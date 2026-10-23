@@ -8,15 +8,22 @@ Engineering owns; a team only edits its own leaf + source repo.
 
 Each cluster has its **own** container registry (one ACR per Azure cluster, one ECR per AWS
 cluster). The image is **built once** (immutable digest) and **copied by digest** into each
-cluster's registry as it is promoted — never rebuilt. The cluster→registry map is the single
-source of truth:
+cluster's registry as it is promoted — never rebuilt.
 
-- `team-*-gitops/config/registries.yaml` — `<env>/<cloud>/<region>` → registry login server.
-  Onboarding a new cluster's registry = **add one line** here.
+**Where the topology lives (single source of truth):** the PE-owned repo **`platform-actions`**
+holds `catalog.yaml` — a hierarchy of shareable platform facts (`defaults → environments.<env> →
+clouds.<cloud> → regions.<region>`). A fact is set at the level it applies to and inherited
+downward; a cluster's `registry` is read at the deepest level that defines it. Onboarding a new
+cluster's registry = set its `regions.<region>.registry` (facts shared by a whole env/cloud — a
+subscription, an AWS account — are set once at that level).
 
-Each cluster leaf (`apps/<svc>/envs/<env>/<cloud>/<region>/values.yaml`) carries its own
-`image.repository` (that cluster's registry), `tag`, and `digest`. CI writes only the sbx leaf;
-every higher ring is a gated promotion.
+Team GitOps repos do **not** keep their own copy; their `promote.yml` and `validate.yml` are
+**thin callers** of the reusable workflows in `platform-actions` (the same pattern as the
+`validate-team-repo.yml` that already lived in the platform). See `platform-actions/README.md`.
+
+Each cluster leaf (`apps/<svc>/envs/<env>/<cloud>/<region>/values.yaml`) still carries its own
+`image.repository` (that cluster's registry), `tag`, and `digest` — written by the promotion
+workflow from `catalog.yaml`. CI writes only the sbx leaf; every higher ring is a gated promotion.
 
 ## Identities & permissions (passwordless, least privilege)
 
@@ -51,19 +58,28 @@ least privilege is enforced at the role layer, not just by convention.
 1. **CI (`orders-api/cd.yml`)** on push to `main`/`releases/M*`: GitVersion → build once (SBOM +
    provenance) → discover the sbx registry from the sbx leaf → push + **cosign keyless sign** →
    pin the sbx leaf (`tag` + `digest`). Argo CD on sbx reconciles.
-2. **Promotion (`team-alpha-gitops/promote.yml`, `workflow_dispatch`)**: validates the ring
-   (sbx→dev→stg→prd, canary-first, stable-only into stg/prd, provenance) → **`cosign copy`s the
-   exact digest (with its signature) into the target cluster's ACR** → pins the target leaf
-   (`repository` + `tag` + `digest`) → opens a CODEOWNERS-gated PR. Merge = deploy; revert = rollback.
+2. **Promotion (`team-alpha-gitops/promote.yml` → reusable `platform-actions/.github/workflows/promote.yml`,
+   `workflow_dispatch`)**: the thin caller forwards inputs + `secrets: inherit`; the reusable
+   workflow resolves the source/target registries from `platform-actions/catalog.yaml` (via the
+   `resolve-registry` composite action), validates the ring (sbx→dev→stg→prd, canary-first,
+   stable-only into stg/prd, provenance) → **`cosign copy`s the exact digest (with its signature)
+   into the target cluster's ACR** → pins the target leaf (`repository` + `tag` + `digest`) →
+   opens a CODEOWNERS-gated PR. Merge = deploy; revert = rollback.
+3. **PR validation (`team-alpha-gitops/validate.yml` → reusable
+   `platform-actions/.github/workflows/validate-team-repo.yml`)**: runs the platform policy tool
+   (`check_team_layout.py`, checked out from `platform-gitops`) on every PR.
 
 ## Verified (POC, 2026-10)
 
-- **Image push** end-to-end on the live **sbx/azure** cluster: CI built `0.1.0` (digest
-  `d3c785…`), pushed to `acrplatsbxcus14462b`, signed, pinned the sbx leaf; Argo CD rolled a new
-  pod on that digest.
-- **Promotion** sbx/azure → dev/azure: the promote workflow copied digest `d3c785…` (and its
-  signature) into the dev cluster's own ACR `acrplatdevcus5826df`, created + pinned the
-  `dev/azure/centralus` leaf (dev-ACR repository, same digest), opened PR #1, merged.
+- **Image push** end-to-end on the live **sbx/azure** cluster: CI built `0.1.0`, pushed to
+  `acrplatsbxcus14462b`, signed, pinned the sbx leaf; Argo CD rolled new pods on the CI-built
+  digests (`d3c785…`, then `cb939e73…`).
+- **Promotion** sbx/azure → dev/azure through the **reusable `platform-actions` workflow**: resolved
+  the registries from `catalog.yaml`, copied the exact digest (+ signature) into the dev cluster's
+  own ACR `acrplatdevcus5826df`, created/pinned the `dev/azure/centralus` leaf (dev-ACR repository,
+  same digest), opened the PR, merged.
+- **Validate** runs from `platform-actions` on a PR and is **green** (`PLATFORM_READ_TOKEN` set on
+  the team repo so the policy tool + fleet can be checked out).
   (The dev-cluster pod roll-out was not observed from the POC workstation because the dev API
   server is private and the operator's PIM was scoped to the sbx resource group; the registry +
   GitOps mechanics are proven and Argo CD reconciles the leaf once the cluster is reachable.)
@@ -77,13 +93,15 @@ least privilege is enforced at the role layer, not just by convention.
 - **AWS onboarding** (per-cluster ECR): mirror the Azure model for the AWS clusters —
   - a **GitHub OIDC IAM role** (CI publisher) with `ecr:*Push*` on the sbx **ECR only**, and a
     promotion IAM role with pull on source + push on the next-ring ECR;
-  - create the per-cluster ECR repos; add their hosts to `config/registries.yaml`;
+  - create the per-cluster ECR repos; set their hosts under the clusters in
+    `platform-actions/catalog.yaml`;
   - CI/promotion already `cosign copy` by digest into ECR (carries signatures); re-enable the
     AWS copy block in `cd.yml` (currently gated off for the Azure-first iteration).
+- **Generate `platform-actions/catalog.yaml` from Terraform** (`fleet.yaml` + each stack's
+  `acr_login_server`/RG/vault outputs) so the central catalog can't drift from what TF creates.
 - **GitOps write via a GitHub App** instead of `GITOPS_PAT` (fine-grained, PE-owned, no personal
   token).
 - **prd gating**: put the promotion identity's prd ACR push behind a GitHub **Environment** with
   required reviewers.
-- **validate.yml** PR check needs a `PLATFORM_READ_TOKEN` (or a GitHub App) to check out the
-  private platform repos (`platform-gitops`, `platform-terraform`, `golden-helm-charts`); with the
-  default `github.token` the cross-repo checkout fails.
+- **Optional:** have `orders-api/cd.yml` resolve the sbx registry via the same `resolve-registry`
+  action (instead of reading the leaf) for full single-source-of-truth consistency.
