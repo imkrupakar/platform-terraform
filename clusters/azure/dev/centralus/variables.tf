@@ -39,15 +39,12 @@ variable "github_org_url" {
 }
 variable "github_app_id" {
   type    = string
-  default = ""
 }
 variable "github_app_installation_id" {
   type    = string
-  default = ""
 }
 variable "github_app_private_key" {
   type      = string
-  default   = ""
   sensitive = true
 }
 variable "github_token" {

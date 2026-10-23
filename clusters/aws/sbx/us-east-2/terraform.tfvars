@@ -1,8 +1,8 @@
-region             = "us-east-2"
-cluster_name       = "eks-sbx-use2"
-kubernetes_version = "1.31"
+region             = "us-east-1"
+cluster_name       = "eks-sbx-use1"
+kubernetes_version = "1.34"
 environment        = "sbx"
-node_count         = 3
+node_count         = 2
 node_instance_type = "m6i.xlarge"
 ecr_repositories   = ["orders-api"]
 

@@ -1,4 +1,4 @@
-subscription_id            = "d350c31d-7c55-46cd-bc2f-cd7ec6b6db80"
+subscription_id            = "c556d760-610e-4ac0-a522-dc67de95d763"
 resource_group_name        = "rg-platform-sbx-cus"
 region                     = "centralus"
 cluster_name               = "aks-sbx-cus"

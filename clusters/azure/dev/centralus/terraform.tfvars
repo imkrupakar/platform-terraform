@@ -1,10 +1,10 @@
-subscription_id            = "d350c31d-7c55-46cd-bc2f-cd7ec6b6db80"
+subscription_id            = "c556d760-610e-4ac0-a522-dc67de95d763"
 resource_group_name        = "rg-platform-dev-cus"
 region                     = "centralus"
 cluster_name               = "aks-dev-cus"
 acr_name                   = "acrplatdevcus5826df"
 environment                = "dev"
-node_count                 = 3
+node_count                 = 2
 node_vm_size               = "Standard_D4ds_v6"
 enable_argocd              = true
 argocd_chart_version       = "10.10.1"
