@@ -1,0 +1,17 @@
+# tools/rancher-cluster — example inputs. Copy to terraform.tfvars and fill in secrets.
+# DO NOT commit real secrets.
+
+# rancher_hostname = ""          # empty => <dns_label>.<region>.cloudapp.azure.com
+# dns_label        = "rancher-platform-tools-cus"
+rancher_bootstrap_password = "CHANGE-ME-bootstrap"
+
+# Optional overrides (defaults shown):
+# subscription_id     = "c556d760-610e-4ac0-a522-dc67de95d763"
+# region              = "centralus"
+# resource_group_name = "rg-platform-tools-cus"
+# cluster_name        = "aks-tools-cus"
+# kubernetes_version  = "1.34"
+# node_count          = 2
+# node_vm_size        = "Standard_D4ds_v6"
+# rancher_version      = "2.15.2"   # latest stable
+# cert_manager_version = "v1.21.3"

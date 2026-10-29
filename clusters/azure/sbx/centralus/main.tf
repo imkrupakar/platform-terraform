@@ -10,11 +10,13 @@ terraform {
     helm       = { source = "hashicorp/helm", version = "~> 2.13" }
     kubectl    = { source = "gavinbunney/kubectl", version = "~> 1.14" }
     http       = { source = "hashicorp/http", version = "~> 3.4" }
+    rancher2   = { source = "rancher/rancher2", version = ">= 5.0.0" }
   }
 }
 
 provider "azurerm" {
-  subscription_id = var.subscription_id
+  subscription_id                 = var.subscription_id
+  resource_provider_registrations = "none"
   features {}
 }
 
@@ -88,11 +90,16 @@ module "argocd" {
   cloud                      = "azure"
   argocd_chart_version       = var.argocd_chart_version
   platform_gitops_repo       = var.platform_gitops_repo
+  platform_gitops_revision   = var.platform_gitops_revision
   github_org_url             = var.github_org_url
   github_app_id              = var.github_app_id
   github_app_installation_id = var.github_app_installation_id
   github_app_private_key     = var.github_app_private_key
   github_token               = var.github_token
+
+  # Rancher ids (cluster-id + per-team '<clusterId>:<projectId>') onto the in-cluster cluster Secret,
+  # so the tenants-namespace ApplicationSet can stamp field.cattle.io/projectId per namespace.
+  cluster_secret_annotations = local.rancher_cluster_secret_annotations
 
   depends_on = [module.cluster, azurerm_role_assignment.acrpull, module.gateway_api_crds]
 }

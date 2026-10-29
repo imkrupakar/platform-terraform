@@ -6,3 +6,7 @@ crash.log
 *.pem
 .deployvars
 **/argocd-app.pem
+
+# Rancher tools tfvars hold bootstrap/admin passwords — keep out of VCS (use *.example)
+tools/rancher-cluster/terraform.tfvars
+tools/rancher-bootstrap/terraform.tfvars

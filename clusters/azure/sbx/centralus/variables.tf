@@ -33,15 +33,20 @@ variable "platform_gitops_repo" {
   type    = string
   default = "https://github.com/krupakar-hyland/platform-gitops"
 }
+variable "platform_gitops_revision" {
+  type        = string
+  description = "Git revision (branch/tag) Argo tracks for platform-gitops. Point at a branch for live testing before merging to main."
+  default     = "main"
+}
 variable "github_org_url" {
   type    = string
   default = "https://github.com/krupakar-hyland"
 }
 variable "github_app_id" {
-  type    = string
+  type = string
 }
 variable "github_app_installation_id" {
-  type    = string
+  type = string
 }
 variable "github_app_private_key" {
   type      = string
@@ -51,4 +56,35 @@ variable "github_token" {
   type      = string
   default   = ""
   sensitive = true
+}
+
+# --- Rancher registration (per-cluster) -------------------------------------------------------
+variable "enable_rancher_registration" {
+  type        = bool
+  description = "Register this cluster into Rancher and install the cattle-cluster-agent."
+  default     = false
+}
+
+variable "rancher_url" {
+  type        = string
+  description = "Rancher API/UI URL (tools/rancher-cluster output)."
+  default     = ""
+}
+
+variable "rancher_token" {
+  type        = string
+  description = "Rancher API token (tools/rancher-bootstrap output rancher_api_token)."
+  default     = ""
+  sensitive   = true
+}
+
+variable "rancher_insecure" {
+  type    = bool
+  default = true
+}
+
+
+variable "rancher_tenants" {
+  type    = map(object({ group_principal_id = string }))
+  default = {}
 }

@@ -50,6 +50,7 @@ resource "kubernetes_secret" "in_cluster" {
       cloud                            = var.cloud
       workloads                        = "true"
     }
+    annotations = var.cluster_secret_annotations
   }
   data = {
     name   = "in-cluster"
