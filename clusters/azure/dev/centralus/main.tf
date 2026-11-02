@@ -2,21 +2,7 @@
 # Single `terraform apply` provisions everything (cluster, Gateway API CRDs, Argo CD) in one pass.
 # First bring-up of a brand-new cluster: apply once with enable_argocd=false to stand up infra,
 # create the GitHub App, then apply with enable_argocd=true and the github_app_* vars set.
-terraform {
-  required_version = ">= 1.6.0"
-  required_providers {
-    azurerm    = { source = "hashicorp/azurerm", version = "~> 4.0" }
-    kubernetes = { source = "hashicorp/kubernetes", version = "~> 2.30" }
-    helm       = { source = "hashicorp/helm", version = "~> 2.13" }
-    kubectl    = { source = "gavinbunney/kubectl", version = "~> 1.14" }
-    http       = { source = "hashicorp/http", version = "~> 3.4" }
-  }
-}
-
-provider "azurerm" {
-  subscription_id = var.subscription_id
-  features {}
-}
+# Provider + required_providers config lives in providers.tf.
 
 module "cluster" {
   source              = "../../../../modules/aks-cluster"
@@ -25,7 +11,7 @@ module "cluster" {
   resource_group_name = var.resource_group_name
   node_count          = var.node_count
   node_vm_size        = var.node_vm_size
-  tags                = { platform = "argocd-sandbox", environment = var.environment }
+  tags                = local.common_tags
 }
 
 # Nonprod ACR in the same platform RG; AKS kubelet identity gets AcrPull.
@@ -35,7 +21,7 @@ resource "azurerm_container_registry" "this" {
   location            = var.region
   sku                 = "Standard"
   admin_enabled       = false
-  tags                = { platform = "argocd-sandbox", tier = "nonprod" }
+  tags                = merge(local.common_tags, { tier = var.environment == "prd" ? "prod" : "nonprod" })
 }
 
 resource "azurerm_role_assignment" "acrpull" {
@@ -44,29 +30,20 @@ resource "azurerm_role_assignment" "acrpull" {
   principal_id         = module.cluster.kubelet_identity_object_id
 }
 
-# --- Providers configured against the freshly created cluster (used by the GitOps stage) ---
-provider "kubernetes" {
-  host                   = module.cluster.host
-  cluster_ca_certificate = base64decode(module.cluster.cluster_ca_certificate)
-  client_certificate     = base64decode(module.cluster.client_certificate)
-  client_key             = base64decode(module.cluster.client_key)
-}
-
-provider "helm" {
-  kubernetes {
-    host                   = module.cluster.host
-    cluster_ca_certificate = base64decode(module.cluster.cluster_ca_certificate)
-    client_certificate     = base64decode(module.cluster.client_certificate)
-    client_key             = base64decode(module.cluster.client_key)
+locals {
+  # Cluster kube credentials — single source for the kubernetes/helm/kubectl providers (DRY).
+  kube = {
+    host        = module.cluster.host
+    ca          = base64decode(module.cluster.cluster_ca_certificate)
+    client_cert = base64decode(module.cluster.client_certificate)
+    client_key  = base64decode(module.cluster.client_key)
   }
-}
 
-provider "kubectl" {
-  host                   = module.cluster.host
-  cluster_ca_certificate = base64decode(module.cluster.cluster_ca_certificate)
-  client_certificate     = base64decode(module.cluster.client_certificate)
-  client_key             = base64decode(module.cluster.client_key)
-  load_config_file       = false
+  # Common resource tags, framed from var.environment (no hardcoded env strings).
+  common_tags = {
+    platform    = "argocd"
+    environment = var.environment
+  }
 }
 
 # Foundational CRDs (Kubernetes Gateway API), installed by Terraform before the ingress stack.

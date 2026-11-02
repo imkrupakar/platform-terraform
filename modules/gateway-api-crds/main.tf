@@ -11,15 +11,8 @@
 # platform Gateway (both GitOps) retry until these CRDs exist.
 #
 # Providers (kubectl against the target cluster, http) are configured by the caller.
+# required_providers lives in providers.tf.
 ###############################################################################
-
-terraform {
-  required_version = ">= 1.6.0"
-  required_providers {
-    kubectl = { source = "gavinbunney/kubectl", version = "~> 1.14" }
-    http    = { source = "hashicorp/http", version = "~> 3.4" }
-  }
-}
 
 data "http" "bundle" {
   url = "https://github.com/kubernetes-sigs/gateway-api/releases/download/v${var.gateway_api_version}/${var.channel}-install.yaml"

@@ -58,7 +58,7 @@ variable "github_token" {
 
 # Extra annotations to stamp on the in-cluster cluster Secret (surfaced to the ApplicationSet cluster
 # generator as {{.metadata.annotations.*}}). The sbx caller feeds Rancher ids here
-# (rancher.platform.internal/cluster-id + per-team project ids) so GitOps can map namespaces -> Projects.
+# (rancher.platform.internal/cluster-id + per-tenant project ids) so GitOps can map namespaces -> Projects.
 variable "cluster_secret_annotations" {
   type        = map(string)
   description = "Annotations added to the in-cluster cluster Secret (e.g. Rancher cluster-id/project ids)."

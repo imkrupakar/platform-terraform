@@ -1,17 +1,8 @@
 ###############################################################################
 # argocd-bootstrap — install Argo CD on THIS cluster and hand control to GitOps.
 # Consumed by each clusters/<cluster> stack. Providers (kubernetes, helm) are configured
-# by the caller against the freshly created cluster.
+# by the caller against the freshly created cluster. required_providers lives in providers.tf.
 ###############################################################################
-
-terraform {
-  required_version = ">= 1.6.0"
-  required_providers {
-    kubernetes = { source = "hashicorp/kubernetes", version = "~> 2.30" }
-    helm       = { source = "hashicorp/helm", version = "~> 2.13" }
-    kubectl    = { source = "gavinbunney/kubectl", version = "~> 1.14" }
-  }
-}
 
 locals {
   # Prod clusters get an HA Argo CD; nonprod a single-replica install.

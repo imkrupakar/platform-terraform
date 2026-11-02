@@ -2,20 +2,7 @@
 # Mirrors clusters/azure/sbx/centralus. Single `terraform apply` provisions everything in one pass.
 # First bring-up of a brand-new cluster: apply once with enable_argocd=false to stand up infra,
 # create the GitHub App, then apply with enable_argocd=true and the github_app_* vars set.
-terraform {
-  required_version = ">= 1.6.0"
-  required_providers {
-    aws        = { source = "hashicorp/aws", version = "~> 5.60" }
-    kubernetes = { source = "hashicorp/kubernetes", version = "~> 2.30" }
-    helm       = { source = "hashicorp/helm", version = "~> 2.13" }
-    kubectl    = { source = "gavinbunney/kubectl", version = "~> 1.14" }
-    http       = { source = "hashicorp/http", version = "~> 3.4" }
-  }
-}
-
-provider "aws" {
-  region = var.region
-}
+# Provider + required_providers config lives in providers.tf.
 
 module "eks" {
   source = "../../../../modules/eks-cluster"
@@ -24,7 +11,15 @@ module "eks" {
   kubernetes_version = var.kubernetes_version
   node_count         = var.node_count
   node_instance_type = var.node_instance_type
-  tags               = { platform = "argocd-sandbox", environment = var.environment }
+  tags               = local.common_tags
+}
+
+locals {
+  # Common resource tags, framed from var.environment (no hardcoded env strings).
+  common_tags = {
+    platform    = "argocd"
+    environment = var.environment
+  }
 }
 
 # ECR has no "registry" resource (unlike ACR) — the registry is implicit per account+region.
@@ -40,42 +35,7 @@ resource "aws_ecr_repository" "this" {
   encryption_configuration {
     encryption_type = "AES256"
   }
-  tags = { platform = "argocd-sandbox", tier = "nonprod" }
-}
-
-# --- Providers configured against the freshly created EKS cluster (used by the GitOps stage) ---
-# Exec auth (aws eks get-token) so credentials don't expire mid-apply.
-provider "kubernetes" {
-  host                   = module.eks.cluster_endpoint
-  cluster_ca_certificate = base64decode(module.eks.cluster_ca_certificate)
-  exec {
-    api_version = "client.authentication.k8s.io/v1beta1"
-    command     = "aws"
-    args        = ["eks", "get-token", "--cluster-name", module.eks.cluster_name, "--region", var.region]
-  }
-}
-
-provider "helm" {
-  kubernetes {
-    host                   = module.eks.cluster_endpoint
-    cluster_ca_certificate = base64decode(module.eks.cluster_ca_certificate)
-    exec {
-      api_version = "client.authentication.k8s.io/v1beta1"
-      command     = "aws"
-      args        = ["eks", "get-token", "--cluster-name", module.eks.cluster_name, "--region", var.region]
-    }
-  }
-}
-
-provider "kubectl" {
-  host                   = module.eks.cluster_endpoint
-  cluster_ca_certificate = base64decode(module.eks.cluster_ca_certificate)
-  load_config_file       = false
-  exec {
-    api_version = "client.authentication.k8s.io/v1beta1"
-    command     = "aws"
-    args        = ["eks", "get-token", "--cluster-name", module.eks.cluster_name, "--region", var.region]
-  }
+  tags = merge(local.common_tags, { tier = var.environment == "prd" ? "prod" : "nonprod" })
 }
 
 # Foundational CRDs (Kubernetes Gateway API), installed by Terraform before the ingress stack.

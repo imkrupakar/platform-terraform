@@ -14,12 +14,6 @@
 # can't be planned, so it is incompatible with a single `terraform apply`. We instead apply it the
 # way Rancher documents (`curl | kubectl apply`).
 ###############################################################################
-terraform {
-  required_providers {
-    rancher2 = { source = "rancher/rancher2" }
-    null     = { source = "hashicorp/null", version = "~> 3.2" }
-  }
-}
 
 # Throwaway kubeconfig built from THIS cluster's credentials (the same values the caller feeds the
 # kubectl/kubernetes providers). In CI these come from `module.cluster` outputs, populated by the
@@ -66,7 +60,7 @@ resource "rancher2_cluster" "self" {
   }
 }
 
-# 2) Install the agent by applying the registration manifest to this cluster (self-signed -> --insecure).
+# 2) Install the agent by applying the registration manifest to this cluster (var.insecure -> curl --insecure).
 resource "null_resource" "register" {
   triggers = {
     cluster      = var.cluster_name
@@ -84,12 +78,12 @@ resource "null_resource" "register" {
       KUBECONFIG_FILE="$(mktemp)"
       trap 'rm -f "$KUBECONFIG_FILE"' EXIT
       printf '%s' "$KUBECONFIG_CONTENT" > "$KUBECONFIG_FILE"
-      curl --insecure -sfL "$MANIFEST_URL" | kubectl --kubeconfig "$KUBECONFIG_FILE" apply -f -
+      curl ${var.insecure ? "--insecure " : ""}-sfL "$MANIFEST_URL" | kubectl --kubeconfig "$KUBECONFIG_FILE" apply -f -
     CMD
   }
 }
 
-# 3) 1:1 team=Project — one Rancher Project per tenant on THIS cluster + project-member for its GitHub
+# 3) 1:1 tenant=Project — one Rancher Project per tenant on THIS cluster + project-member for its GitHub
 #    team. Driven directly by var.tenants (empty map => none); the generated `<clusterId>:<projectId>`
 #    id is exported via tenant_project_ids and fed to the Argo in-cluster Secret by the caller.
 resource "rancher2_project" "tenant" {

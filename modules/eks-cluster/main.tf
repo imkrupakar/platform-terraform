@@ -3,13 +3,8 @@
 # + EKS control plane (IRSA/OIDC) + one managed node group. A thin WRAPPER around the
 # de-facto-standard terraform-aws-modules so every cluster stack stays DRY and pins versions
 # in one place (mirrors modules/aks-cluster). Outputs feed the kubernetes/helm/kubectl providers.
+# required_providers lives in providers.tf.
 ###############################################################################
-terraform {
-  required_version = ">= 1.6.0"
-  required_providers {
-    aws = { source = "hashicorp/aws", version = "~> 5.60" }
-  }
-}
 
 variable "name" { type = string }               # cluster name, e.g. eks-sbx-use2
 variable "kubernetes_version" { type = string } # e.g. "1.31"

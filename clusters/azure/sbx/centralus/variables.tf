@@ -59,32 +59,33 @@ variable "github_token" {
 }
 
 # --- Rancher registration (per-cluster) -------------------------------------------------------
-variable "enable_rancher_registration" {
-  type        = bool
-  description = "Register this cluster into Rancher and install the cattle-cluster-agent."
-  default     = false
-}
-
-variable "rancher_url" {
-  type        = string
-  description = "Rancher API/UI URL (tools/rancher-cluster output)."
-  default     = ""
+# Presence of this object enables registration (omit it to skip). `url` is required; the token is a
+# separate sensitive var (Terraform forbids sensitive values in count/for_each, and it keeps the
+# secret injectable via TF_VAR_rancher_token).
+variable "rancher" {
+  type = object({
+    url      = string
+    insecure = optional(bool, true)
+  })
+  description = "Rancher connection for this cluster (tools/rancher-cluster output). Omit to skip registration."
+  default     = null
 }
 
 variable "rancher_token" {
   type        = string
-  description = "Rancher API token (tools/rancher-bootstrap output rancher_api_token)."
+  description = "Rancher API token (tools/rancher-bootstrap output). Required when `rancher` is set; supply via TF_VAR_rancher_token / a secret manager."
   default     = ""
   sensitive   = true
+
+  # Fail fast at plan time instead of an opaque rancher2 provider auth error.
+  validation {
+    condition     = var.rancher == null || var.rancher_token != ""
+    error_message = "rancher_token is required when `rancher` is set (export TF_VAR_rancher_token)."
+  }
 }
 
-variable "rancher_insecure" {
-  type    = bool
-  default = true
-}
-
-
-variable "rancher_tenants" {
-  type    = map(object({ group_principal_id = string }))
-  default = {}
+variable "tenants" {
+  type        = map(object({ group_principal_id = string }))
+  description = "1:1 tenant=Rancher Project. tenant => { group_principal_id } (GitHub team). Empty principal => Project only (no RBAC binding)."
+  default     = {}
 }

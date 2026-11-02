@@ -38,10 +38,10 @@ variable "github_org_url" {
   default = "https://github.com/krupakar-hyland"
 }
 variable "github_app_id" {
-  type    = string
+  type = string
 }
 variable "github_app_installation_id" {
-  type    = string
+  type = string
 }
 variable "github_app_private_key" {
   type      = string

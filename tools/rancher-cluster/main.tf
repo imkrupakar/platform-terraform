@@ -3,21 +3,9 @@
 # Provision the dedicated "tools" cluster (Rancher's local cluster) and install the add-ons
 # Rancher needs: cert-manager + the Rancher server (Helm). Outputs rancher_url for STACK 2.
 #
-# Apply order:  this stack  ->  tools/rancher-config (rancher2: auth, imported clusters, projects)
+# Apply order:  this stack  ->  tools/rancher-bootstrap (admin token, optional GitHub auth)
+#               ->  each fleet cluster registers itself via modules/rancher-register
 ###############################################################################
-terraform {
-  required_version = ">= 1.6.0"
-  required_providers {
-    azurerm    = { source = "hashicorp/azurerm", version = "~> 4.0" }
-    helm       = { source = "hashicorp/helm", version = "~> 2.13" }
-    kubernetes = { source = "hashicorp/kubernetes", version = "~> 2.30" }
-  }
-}
-
-provider "azurerm" {
-  subscription_id = var.subscription_id
-  features {}
-}
 
 # RG + VNet + AKS (system-assigned identity, OIDC issuer + workload identity). Same module the
 # workload clusters use — a tools cluster is just an AKS cluster with no ACR/Argo wiring.
@@ -30,23 +18,6 @@ module "cluster" {
   node_count          = var.node_count
   node_vm_size        = var.node_vm_size
   tags                = { platform = "rancher-tools", environment = "tools" }
-}
-
-# Providers talk to the freshly created tools cluster via its admin kube_config.
-provider "kubernetes" {
-  host                   = module.cluster.host
-  cluster_ca_certificate = base64decode(module.cluster.cluster_ca_certificate)
-  client_certificate     = base64decode(module.cluster.client_certificate)
-  client_key             = base64decode(module.cluster.client_key)
-}
-
-provider "helm" {
-  kubernetes {
-    host                   = module.cluster.host
-    cluster_ca_certificate = base64decode(module.cluster.cluster_ca_certificate)
-    client_certificate     = base64decode(module.cluster.client_certificate)
-    client_key             = base64decode(module.cluster.client_key)
-  }
 }
 
 # --- Add-on 1: cert-manager (Rancher's one prerequisite; issues the Rancher ingress cert) -------

@@ -1,7 +1,6 @@
 # tools/ — Rancher on a dedicated tools cluster (Terraform)
 
-Stands up the **Rancher** access-management plane and wires it to our GitOps tenancy model.
-Design: [`ArgoCDPlatform/docs/rancher-access-strategy.md`](../../../ArgoCDPlatform/docs/rancher-access-strategy.md).
+Stands up the **Rancher** access-management plane that fleet clusters register into.
 
 ```
 platform-terraform/
@@ -12,28 +11,21 @@ platform-terraform/
     └── rancher-register/    per-cluster — a fleet cluster registers ITSELF + installs its agent
 ```
 
-**Registration is decentralised:** each fleet cluster registers itself by calling
-`modules/rancher-register` from its own stack (the same pattern by which each cluster self-bootstraps
-Argo CD). No central stack imports the fleet.
+Registration is decentralised: each fleet cluster registers itself by calling
+`modules/rancher-register` from its own stack. No central stack imports the fleet.
 
-## 1. STACK 1 — tools cluster + add-ons
+## 1. Tools cluster + add-ons
 ```shell
 cd rancher-cluster
 cp terraform.tfvars.example terraform.tfvars   # set rancher_bootstrap_password (hostname optional)
 terraform init && terraform apply
 terraform output rancher_url                    # https://<dns_label>.<region>.cloudapp.azure.com
 ```
-Installs on the tools cluster: `cert-manager`, **`ingress-nginx`** (with a **static public IP** in the
-AKS node RG), and **Rancher** (`cattle-system`, self-signed TLS). The Rancher hostname is the ingress
-IP's **Azure FQDN** (`<dns_label>.<region>.cloudapp.azure.com`), so no external DNS is needed.
+Installs `cert-manager`, `ingress-nginx` (behind a static public IP in the AKS node RG), and
+**Rancher** (`cattle-system`, self-signed TLS). The Rancher hostname is the ingress IP's Azure FQDN
+(`<dns_label>.<region>.cloudapp.azure.com`), so no external DNS is required.
 
-> AKS has no built-in ingress controller and Rancher needs a hostname — hence the ingress-nginx +
-> static IP + Azure DNS label. (sslip.io/nip.io were reset by corporate SNI filtering; the Azure
-> `*.cloudapp.azure.com` FQDN is not filtered.) This stack provisions the tools cluster
-> (`platform-tools-cus` in `rg-platform-tools-cus-01`) **from scratch** — the earlier `az aks create`
-> cluster was deleted and replaced by this declarative definition (no `terraform import` needed).
-
-## 2. rancher-bootstrap — admin token (run once)
+## 2. Bootstrap — admin token (run once)
 ```shell
 cd ../rancher-bootstrap
 cp terraform.tfvars.example terraform.tfvars   # rancher_url (STACK 1), bootstrap + admin passwords
@@ -42,31 +34,28 @@ terraform output -raw rancher_api_token         # feed to each fleet cluster sta
 ```
 Optional: set `enable_github_auth=true` + the GitHub OAuth App creds to turn on GitHub login.
 
-## 3. Register a fleet cluster (installs the agent) — from the cluster's OWN stack
-Each cluster stack calls `modules/rancher-register` (already wired into
-`clusters/azure/sbx/centralus` behind `enable_rancher_registration`). Register `aks-sbx-cus`:
+## 3. Register a fleet cluster
+From the cluster's own stack (e.g. `clusters/azure/sbx/centralus`), set the `rancher` object to
+enable registration; the token comes from the environment so it stays out of VCS:
 ```shell
 cd ../../clusters/azure/sbx/centralus
-terraform apply \
-  -var enable_rancher_registration=true \
-  -var rancher_url="https://<dns_label>.<region>.cloudapp.azure.com" \
-  -var rancher_token="<rancher_api_token>"
+export TF_VAR_rancher_token="<rancher_api_token>"
+terraform apply -var 'rancher={url="https://<dns_label>.<region>.cloudapp.azure.com"}'
 ```
-This creates the imported `rancher2_cluster` (named after the cloud-provisioned cluster) and applies its registration manifest to the cluster →
-installs **cattle-cluster-agent** (+ fleet-agent). The apply needs no local kube-context — the module
-builds a throwaway kubeconfig from the cluster's own creds (`module.cluster` outputs), so it runs the
-same from CI (GitHub Actions / Spacelift); the runner just needs `kubectl` + `curl` on PATH. Verify:
+Creates the imported `rancher2_cluster` and applies its registration manifest, installing the
+**cattle-cluster-agent** (+ fleet-agent). The module builds a throwaway kubeconfig from the cluster's
+own credentials (`module.cluster` outputs), so no local kube-context is needed and it runs the same
+from CI; the runner needs `kubectl` + `curl` on PATH. Verify:
 ```shell
-kubectl -n cattle-system get deploy cattle-cluster-agent   # against the registered cluster's context
+kubectl -n cattle-system get deploy cattle-cluster-agent
 # and the cluster shows Active in the Rancher UI
 ```
-Set `rancher_enable_tenant_projects=true` + `rancher_tenants` (once GitHub auth is on) to also create
-per-tenant Rancher Projects; `terraform output rancher_tenant_project_ids` then feeds the namespace
-`field.cattle.io/projectId` map (strategy §5-A).
+Set `tenants` (`{ "<team>" = { group_principal_id = "github_team://<id>" } }`) to also create the 1:1
+per-tenant Rancher Projects (empty principal => Project only, no binding).
 
 ## Notes
-- **POC scope:** 1 Rancher replica, self-signed TLS, no HA/backup. Prod: replicas=3, real cert.
-- **Rancher ↔ k8s matrix:** `kubernetes_version` (1.34) and `rancher_version` (2.15.2, latest) must be compatible —
-  verify against the Rancher release and bump together if needed.
-- **Token distribution:** each cluster stack needs the Rancher URL + token. Use a scoped token from a
-  secret manager / `TF_VAR_rancher_token`; never commit it.
+- **TLS:** self-signed (Rancher-generated). Swap to Let's Encrypt / a BYO cert for real use.
+- **Version matrix:** `kubernetes_version` and `rancher_version` must be compatible — verify against
+  the Rancher release and bump together.
+- **Token:** each fleet stack needs the Rancher URL + token. Use `TF_VAR_rancher_token` from a secret
+  manager; never commit it.

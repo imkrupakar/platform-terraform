@@ -5,34 +5,12 @@
 #
 # Run once, after tools/rancher-cluster. Per-cluster registration + Projects live with each cluster.
 ###############################################################################
-terraform {
-  required_version = ">= 1.6.0"
-  required_providers {
-    rancher2 = { source = "rancher/rancher2", version = ">= 5.0.0" }
-  }
-}
-
-# Phase 1 — talk to a brand-new Rancher with the bootstrap password from tools/rancher-cluster.
-provider "rancher2" {
-  alias     = "bootstrap"
-  api_url   = var.rancher_url
-  bootstrap = true
-  insecure  = var.rancher_insecure
-}
 
 resource "rancher2_bootstrap" "admin" {
   provider         = rancher2.bootstrap
   initial_password = var.rancher_bootstrap_password
   password         = var.rancher_admin_password
   token_update     = true
-}
-
-# Phase 2 — admin provider (token) for anything else managed centrally (e.g. GitHub auth).
-provider "rancher2" {
-  alias     = "admin"
-  api_url   = var.rancher_url
-  token_key = rancher2_bootstrap.admin.token
-  insecure  = var.rancher_insecure
 }
 
 # Optional (gated): GitHub as the IdP. Needs a GitHub OAuth App (callback https://<host>/verify-auth).

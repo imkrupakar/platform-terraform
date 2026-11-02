@@ -29,6 +29,12 @@ variable "client_key" {
   sensitive   = true
 }
 
+variable "insecure" {
+  type        = bool
+  description = "Skip TLS verification when fetching the registration manifest (self-signed Rancher). Match the caller's rancher2 provider `insecure`."
+  default     = true
+}
+
 variable "tenants" {
   description = "Tenants => GitHub-team group principal (github_team://<id>). One Rancher Project (1:1) named per tenant + a project-member binding. Empty map => no Projects."
   type        = map(object({ group_principal_id = string }))

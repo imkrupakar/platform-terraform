@@ -27,18 +27,25 @@ workflow from `catalog.yaml`. CI writes only the sbx leaf; every higher ring is 
 
 ## Identities & permissions (passwordless, least privilege)
 
-Provisioned by `platform-terraform/scripts/bootstrap-ci-identity.sh` (POC bootstrap; the durable
-form is a reusable Terraform module — see "Follow-ups"). Two User-Assigned Managed Identities,
-each with a **GitHub OIDC federated credential** (no secrets, no PATs):
+Each **tenant (team)** owns two User-Assigned Managed Identities, each with **GitHub OIDC federated
+credentials** (no secrets, no PATs), living in a dedicated **per-tenant identity RG**
+(`rg-platform-identity-<tenant>-<region>`) that is decoupled from any cluster — so recreating a cluster
+never deletes them and the GitHub client-ID secrets stay stable. The durable form is a reusable
+Terraform module (`modules/ci-identity`, see "Follow-ups"); today
+`platform-terraform/scripts/bootstrap-ci-identity.sh` (region- and tenant-parameterized) provisions them:
 
 | Identity | Federated to (OIDC subject) | ACR rights | Used by |
 |---|---|---|---|
-| `ci-publisher-orders-api` | `orders-api` `:ref:refs/heads/main` (+ `releases/M*`) | **AcrPush on the sbx ACR only** | `orders-api/cd.yml` |
-| `promote-team-alpha` | `team-alpha-gitops` `:ref:refs/heads/main` | **AcrPull on source ACR + AcrPush on next-ring ACR** | `team-alpha-gitops/promote.yml` |
+| `ci-publisher-<tenant>` | **one credential per service repo** in `SERVICE_REPOS` (`<repo>:ref:refs/heads/main`, + optional `releases/M*`) | **AcrPush on the sbx ACR only** | each service's `<repo>/cd.yml` |
+| `promote-<tenant>` | `<tenant>-gitops` `:ref:refs/heads/main` | **AcrPull on source ACR + AcrPush on next-ring ACR** | `<tenant>-gitops/promote.yml` |
 
-Cluster kubelets already get **AcrPull on their own ACR** (provisioned in each cluster's Terraform
-stack). CI can push sbx and nothing else; promotion can copy into the next ring and nothing else —
-least privilege is enforced at the role layer, not just by convention.
+A single `ci-publisher-<tenant>` identity is **shared by all the tenant's services** (one federated
+credential each), so every service repo uses the same `AZURE_CLIENT_ID`; onboarding a new service adds
+a federated credential, not a new identity. The ACR ids are discovered from the cluster RG at runtime,
+so only the **ACR role assignments** are cluster-coupled (re-applied after a cluster rebuild). Cluster
+kubelets already get **AcrPull on their own ACR** (provisioned in each cluster's Terraform stack). CI
+can push sbx and nothing else; promotion can copy into the next ring and nothing else — least privilege
+is enforced at the role layer, not just by convention.
 
 > **Immutable OIDC subjects.** These repos have `use_immutable_subject: true`, so GitHub presents
 > `repo:<org>@<orgid>/<repo>@<repoid>:ref:...`. The bootstrap script auto-detects the subject
@@ -46,10 +53,10 @@ least privilege is enforced at the role layer, not just by convention.
 
 ### GitHub repo secrets (set from the script output)
 
-- `orders-api`: `AZURE_CLIENT_ID` (ci-publisher), `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`,
-  `GITOPS_PAT` (write token to the team GitOps repo; a GitHub App is the target — see Follow-ups).
-- `team-alpha-gitops`: `AZURE_PROMOTE_CLIENT_ID` (promotion), `AZURE_TENANT_ID`,
-  `AZURE_SUBSCRIPTION_ID`.
+- Each service repo (e.g. `orders-api`): `AZURE_CLIENT_ID` (the shared `ci-publisher-<tenant>`),
+  `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `GITOPS_PAT` (write token to the team GitOps repo; a
+  GitHub App is the target — see Follow-ups).
+- `<tenant>-gitops`: `AZURE_PROMOTE_CLIENT_ID` (promotion), `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`.
 - Repo setting: *Allow GitHub Actions to create and approve pull requests* must be ON (the promote
   workflow opens the promotion PR).
 
@@ -69,27 +76,11 @@ least privilege is enforced at the role layer, not just by convention.
    `platform-actions/.github/workflows/validate-team-repo.yml`)**: runs the platform policy tool
    (`check_team_layout.py`, checked out from `platform-gitops`) on every PR.
 
-## Verified (POC, 2026-10)
-
-- **Image push** end-to-end on the live **sbx/azure** cluster: CI built `0.1.0`, pushed to
-  `acrplatsbxcus14462b`, signed, pinned the sbx leaf; Argo CD rolled new pods on the CI-built
-  digests (`d3c785…`, then `cb939e73…`).
-- **Promotion** sbx/azure → dev/azure through the **reusable `platform-actions` workflow**: resolved
-  the registries from `catalog.yaml`, copied the exact digest (+ signature) into the dev cluster's
-  own ACR `acrplatdevcus5826df`, created/pinned the `dev/azure/centralus` leaf (dev-ACR repository,
-  same digest), opened the PR, merged.
-- **Validate** runs from `platform-actions` on a PR and is **green** (`PLATFORM_READ_TOKEN` set on
-  the team repo so the policy tool + fleet can be checked out).
-  (The dev-cluster pod roll-out was not observed from the POC workstation because the dev API
-  server is private and the operator's PIM was scoped to the sbx resource group; the registry +
-  GitOps mechanics are proven and Argo CD reconciles the leaf once the cluster is reachable.)
-
 ## Follow-ups
 
 - **Codify identities into Terraform** (`modules/ci-identity`): a reusable module that takes a
   cluster ACR + a list of `{repo, branch, role}` and emits the UAMI, OIDC federated credentials,
-  and role assignments. Replaces the bootstrap script so new repos/clusters come from
-  `terraform apply`. The script remains the fast path and documents the exact resources to encode.
+  and role assignments, so new repos/clusters come from `terraform apply`.
 - **AWS onboarding** (per-cluster ECR): mirror the Azure model for the AWS clusters —
   - a **GitHub OIDC IAM role** (CI publisher) with `ecr:*Push*` on the sbx **ECR only**, and a
     promotion IAM role with pull on source + push on the next-ring ECR;
