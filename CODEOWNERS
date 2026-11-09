@@ -1,0 +1,5 @@
+# Platform Engineering owns cluster provisioning. Production stacks and fleet.yaml need the leads as well.
+* @imkrupakar/platform-engineering
+/fleet.yaml @imkrupakar/platform-engineering-leads
+/clusters/*/prd/ @imkrupakar/platform-engineering-leads
+/modules/ @imkrupakar/platform-engineering-leads

@@ -1,0 +1,44 @@
+# fleet.yaml — SOURCE OF TRUTH for the cluster fleet.
+#
+# Every cluster runs its own standalone Argo CD. This file is the authoritative index of
+# what exists and which PINNED module/chart versions each cluster runs, so promotion is a
+# reviewable diff: bump a version on sbx, apply + soak, then advance dev -> stg -> prd.
+#
+# CI renders/validates that each entry has a matching clusters/<cloud>/<env>/<region>/ stack and
+# that the pinned module `?ref` in that stack equals module_versions below (drift guard).
+# Promotion is intentionally monotonic: a version must not land in a higher env before the
+# next-lower env already runs it.
+apiVersion: platform/v1
+kind: ClusterFleet
+defaults:
+  platform_gitops_repo: https://github.com/imkrupakar/platform-gitops
+  module_versions:
+    cluster: v1.0.0          # aks-cluster / eks-cluster module tag
+    argocd_bootstrap: v1.0.0 # argocd-bootstrap module tag
+    argocd_chart: 10.10.1    # argoproj/argo-helm argo-cd chart version
+    gateway_api: 1.6.3       # Gateway API CRD bundle (modules/gateway-api-crds)
+
+clusters:
+  - name: sbx-azure-centralus
+    cloud: azure
+    environment: sbx
+    region: centralus
+    path: clusters/azure/sbx/centralus
+    platform_gitops_revision: main
+    module_versions: { cluster: v1.0.0, argocd_bootstrap: v1.0.0, argocd_chart: 10.10.1, gateway_api: 1.6.3 }
+
+  - name: dev-azure-centralus
+    cloud: azure
+    environment: dev
+    region: centralus
+    path: clusters/azure/dev/centralus
+    platform_gitops_revision: main
+    module_versions: { cluster: v1.0.0, argocd_bootstrap: v1.0.0, argocd_chart: 10.10.1, gateway_api: 1.6.3 }
+
+  - name: sbx-aws-useast2
+    cloud: aws
+    environment: sbx
+    region: us-east-2
+    path: clusters/aws/sbx/us-east-2
+    platform_gitops_revision: main
+    module_versions: { cluster: v1.0.0, argocd_bootstrap: v1.0.0, argocd_chart: 10.10.1, gateway_api: 1.6.3 }

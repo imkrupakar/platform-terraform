@@ -1,0 +1,27 @@
+# Base Argo CD install values.
+# Bootstrap reality: Argo CD cannot start unless argocd-cm and argocd-rbac-cm EXIST, so Helm
+# must create them (create: true). (The earlier create:false "GitOps owns them" split-brain
+# design is a chicken-and-egg at first install — Argo CD can't run the argocd-self app that
+# would create the ConfigMaps if it can't start for lack of them.) GitOps may still reconcile
+# argocd-cm/argocd-rbac-cm later via Server-Side-Apply.
+crds:
+  install: true
+  keep: true
+
+# Dex (SSO) unused in this sandbox; disable to remove a failure source.
+dex:
+  enabled: false
+
+configs:
+  cm:
+    create: true
+  rbac:
+    create: true
+  params:
+    create: true
+    application.namespaces: "*"
+    applicationsetcontroller.enable.progressive.syncs: "true"
+    server.insecure: "true"
+
+applicationSet:
+  enabled: true

@@ -1,0 +1,10 @@
+# tools/rancher-bootstrap — example inputs. Copy to terraform.tfvars; DO NOT commit secrets.
+
+rancher_url                = "https://1-2-3-4.sslip.io" # tools/rancher-cluster output rancher_url
+rancher_bootstrap_password = "CHANGE-ME-bootstrap"      # same value used in tools/rancher-cluster
+rancher_admin_password     = "CHANGE-ME-admin"
+
+# Deferred until a GitHub OAuth App exists:
+# enable_github_auth   = true
+# github_client_id     = "xxxxxxxxxxxxxxxxxxxx"
+# github_client_secret = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
